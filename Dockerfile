@@ -28,6 +28,9 @@ FROM golang AS builder
 WORKDIR /app
 ENV SRC_DIR=/src/tparty
 ENV GO111MODULE=on
+ENV GOOS=linux
+ENV GOARCH=amd64
+ENV CGO_ENABLED=0
 RUN mkdir -p ${SRC_DIR}/cmd ${SRC_DIR}/third_party ${SRC_DIR}/pkg ${SRC_DIR}/site /app/third_party /app/site
 COPY go.* $SRC_DIR/
 COPY cmd ${SRC_DIR}/cmd/
@@ -36,21 +39,21 @@ WORKDIR $SRC_DIR
 RUN go mod download
 RUN go build cmd/server/main.go
 
-# Stage 2: Copy local persistent cache into temp container containing "mv"
-FROM alpine AS temp
-ARG CFG=config/config.yaml
-COPY pcache /pc
-RUN echo "Pre-populating cache if found (failure is perfectly OK)"
-RUN mv /pc/$(basename $CFG).pc /config.yaml.pc || touch /config.yaml.pc
+# # Stage 2: Copy local persistent cache into temp container containing "mv"
+# FROM alpine AS temp
+# ARG CFG=config/config.yaml
+# COPY pcache /pc
+# RUN echo "Pre-populating cache if found (failure is perfectly OK)"
+# RUN mv /pc/$(basename $CFG).pc /config.yaml.pc || touch /config.yaml.pc
 
 # Stage 3: Build the configured application container
-FROM gcr.io/distroless/base AS triage-party
-ARG CFG=config/config.yaml
+FROM gcr.io/distroless/base:debug AS triage-party
+# ARG CFG=config/config.yaml
 COPY --from=builder /src/tparty/main /app/
-COPY --from=temp /config.yaml.pc /app/pcache/config.yaml.pc
+# COPY --from=temp /config.yaml.pc /app/pcache/config.yaml.pc
 COPY site /app/site/
 COPY third_party /app/third_party/
-COPY $CFG /app/config/config.yaml
+# COPY $CFG /app/config/config.yaml
 
 # Useful environment variables:
 # 
